@@ -1,0 +1,2333 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SignalDash — @scoopempire</title>
+  <!-- DNS prefetch for faster CDN connections -->
+  <link rel="dns-prefetch" href="//fonts.googleapis.com">
+  <link rel="dns-prefetch" href="//fonts.gstatic.com">
+  <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Fonts: non-blocking load -->
+  <link rel="preload"
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet">
+  </noscript>
+  <!-- Chart.js: defer so it doesn't block HTML parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+  <style>
+    :root {
+      --glass-bg: rgba(255, 255, 255, 0.045);
+      --glass-border: rgba(255, 255, 255, 0.10);
+      --glass-border-h: rgba(255, 255, 255, 0.20);
+      --cyan: #00e5ff;
+      --purple: #a78bfa;
+      --pink: #f472b6;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --t1: rgba(255, 255, 255, 0.92);
+      --t2: rgba(255, 255, 255, 0.50);
+      --t3: rgba(255, 255, 255, 0.22);
+    }
+
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #080816;
+      color: var(--t1);
+      font-family: 'Outfit', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ── BACKGROUND ── */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 120% 80% at 50% -10%, #0d0a2e, #080816 60%);
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      animation: float linear infinite;
+    }
+
+    .o1 {
+      width: 600px;
+      height: 600px;
+      background: #6c47ff;
+      top: -200px;
+      left: -150px;
+      animation-duration: 22s;
+      opacity: .5;
+    }
+
+    .o2 {
+      width: 500px;
+      height: 500px;
+      background: #00c9ff;
+      top: 10%;
+      right: -100px;
+      animation-duration: 28s;
+      animation-delay: -10s;
+      opacity: .45;
+    }
+
+    .o3 {
+      width: 450px;
+      height: 450px;
+      background: #ff47a3;
+      bottom: 5%;
+      left: 20%;
+      animation-duration: 25s;
+      animation-delay: -5s;
+      opacity: .4;
+    }
+
+    .o4 {
+      width: 350px;
+      height: 350px;
+      background: #47ffd4;
+      bottom: -100px;
+      right: 15%;
+      animation-duration: 30s;
+      animation-delay: -15s;
+      opacity: .28;
+    }
+
+    @keyframes float {
+      0% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      25% {
+        transform: translate(28px, -38px) scale(1.04);
+      }
+
+      50% {
+        transform: translate(-18px, 28px) scale(.97);
+      }
+
+      75% {
+        transform: translate(38px, 18px) scale(1.03);
+      }
+
+      100% {
+        transform: translate(0, 0) scale(1);
+      }
+    }
+
+    .noise {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      opacity: .025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px;
+    }
+
+    /* ── TOP BAR ── */
+    .bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(8, 8, 22, .75);
+      backdrop-filter: blur(30px) saturate(200%);
+      -webkit-backdrop-filter: blur(30px) saturate(200%);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 0 36px;
+      height: 66px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -.5px;
+      white-space: nowrap;
+    }
+
+    .logo b {
+      background: linear-gradient(135deg, #fff, rgba(255, 255, 255, .5));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo em {
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-style: normal;
+    }
+
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(244, 114, 182, .1);
+      border: 1px solid rgba(244, 114, 182, .25);
+      border-radius: 999px;
+      padding: 5px 14px 5px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--pink);
+    }
+
+    .live {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s ease infinite;
+    }
+
+    .live-lbl {
+      font-size: 11px;
+      font-family: 'JetBrains Mono';
+      color: var(--green);
+      letter-spacing: .5px;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: .6;
+        transform: scale(.85);
+      }
+    }
+
+    .rbtn {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(0, 229, 255, .06);
+      border: 1px solid rgba(0, 229, 255, .2);
+      border-radius: 10px;
+      padding: 7px 18px;
+      font-size: 12px;
+      color: var(--cyan);
+      cursor: pointer;
+      font-family: 'JetBrains Mono';
+      transition: all .2s;
+    }
+
+    .rbtn:hover {
+      background: rgba(0, 229, 255, .12);
+      border-color: rgba(0, 229, 255, .4);
+    }
+
+    .rbtn:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .rbtn svg {
+      transition: transform .4s;
+    }
+
+    .rbtn.spin svg {
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── MAIN ── */
+    .main {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 32px 36px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .slabel {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      color: var(--t3);
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono';
+    }
+
+    /* ── GLASS ── */
+    .glass {
+      background: var(--glass-bg);
+      backdrop-filter: blur(30px) saturate(180%);
+      -webkit-backdrop-filter: blur(30px) saturate(180%);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .06);
+      transition: border-color .3s;
+    }
+
+    .glass:hover {
+      border-color: var(--glass-border-h);
+    }
+
+    /* ── STATUS ── */
+    .sbanner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      border-radius: 16px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    .sbanner.loading {
+      background: rgba(0, 229, 255, .05);
+      border: 1px solid rgba(0, 229, 255, .15);
+      color: var(--cyan);
+    }
+
+    .sbanner.error {
+      background: rgba(248, 113, 113, .05);
+      border: 1px solid rgba(248, 113, 113, .15);
+      color: var(--red);
+    }
+
+    .sbanner.success {
+      background: rgba(52, 211, 153, .05);
+      border: 1px solid rgba(52, 211, 153, .15);
+      color: var(--green);
+    }
+
+    .sbanner.warn {
+      background: rgba(251, 191, 36, .05);
+      border: 1px solid rgba(251, 191, 36, .2);
+      color: var(--amber);
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* ── DIAGNOSTIC ── */
+    .diag {
+      background: var(--glass-bg);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+
+    .diag-ttl {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .diag-sub {
+      font-size: 13px;
+      color: var(--t2);
+      margin-bottom: 18px;
+    }
+
+    .ep-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .ep {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .03);
+      border: 1px solid rgba(255, 255, 255, .06);
+      font-family: 'JetBrains Mono';
+      font-size: 11px;
+      transition: all .2s;
+    }
+
+    .ep.testing {
+      border-color: rgba(251, 191, 36, .3);
+      background: rgba(251, 191, 36, .04);
+    }
+
+    .ep.ok {
+      border-color: rgba(52, 211, 153, .3);
+      background: rgba(52, 211, 153, .05);
+    }
+
+    .ep.fail {
+      border-color: rgba(248, 113, 113, .15);
+      opacity: .7;
+    }
+
+    .ep.cors {
+      border-color: rgba(251, 191, 36, .4);
+      background: rgba(251, 191, 36, .06);
+    }
+
+    .ep-ico {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .ep-ico.idle {
+      background: rgba(255, 255, 255, .06);
+      color: var(--t3);
+    }
+
+    .ep-ico.spin {
+      border: 2px solid var(--amber);
+      border-right-color: transparent;
+      animation: spin .7s linear infinite;
+    }
+
+    .ep-ico.ok {
+      background: rgba(52, 211, 153, .2);
+      color: var(--green);
+    }
+
+    .ep-ico.fail {
+      background: rgba(248, 113, 113, .15);
+      color: var(--red);
+    }
+
+    .ep-ico.cors {
+      background: rgba(251, 191, 36, .2);
+      color: var(--amber);
+    }
+
+    .ep-lbl {
+      color: var(--t2);
+      width: 125px;
+      flex-shrink: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ep-res {
+      flex: 1;
+      color: var(--t3);
+      font-size: 10px;
+    }
+
+    .ep.ok .ep-lbl {
+      color: var(--green);
+    }
+
+    .ep.cors .ep-lbl {
+      color: var(--amber);
+    }
+
+    .rawbtn {
+      background: none;
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: 8px;
+      padding: 5px 12px;
+      color: var(--t3);
+      font-size: 11px;
+      cursor: pointer;
+      font-family: 'JetBrains Mono';
+      margin-top: 12px;
+      transition: all .2s;
+    }
+
+    .rawbtn:hover {
+      color: var(--t2);
+      border-color: rgba(255, 255, 255, .2);
+    }
+
+    .rawlog {
+      background: rgba(0, 0, 0, .5);
+      border: 1px solid rgba(255, 255, 255, .07);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 12px;
+      font-family: 'JetBrains Mono';
+      font-size: 11px;
+      color: var(--green);
+      max-height: 260px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      display: none;
+    }
+
+    .rawlog.open {
+      display: block;
+    }
+
+    /* ── CORS HELP ── */
+    .chelp {
+      background: rgba(251, 191, 36, .04);
+      border: 1px solid rgba(251, 191, 36, .2);
+      border-radius: 16px;
+      padding: 22px 26px;
+      margin-bottom: 24px;
+    }
+
+    .chelp h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--amber);
+      margin-bottom: 10px;
+    }
+
+    .chelp p {
+      font-size: 13px;
+      color: var(--t2);
+      line-height: 1.75;
+      margin-bottom: 8px;
+    }
+
+    .chelp ol {
+      padding-left: 20px;
+      font-size: 13px;
+      color: var(--t2);
+      line-height: 2.2;
+    }
+
+    .chelp pre {
+      display: block;
+      margin-top: 12px;
+      padding: 14px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, .45);
+      font-size: 11px;
+      line-height: 1.9;
+      white-space: pre-wrap;
+      color: var(--green);
+      font-family: 'JetBrains Mono';
+      overflow: auto;
+    }
+
+    /* ── MANUAL PASTE ── */
+    .paste-box {
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .paste-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .paste-sub {
+      font-size: 13px;
+      color: var(--t2);
+      margin-bottom: 14px;
+    }
+
+    .paste-ta {
+      width: 100%;
+      min-height: 130px;
+      background: rgba(0, 0, 0, .4);
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: 12px;
+      padding: 14px;
+      color: var(--green);
+      font-family: 'JetBrains Mono';
+      font-size: 12px;
+      resize: vertical;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .paste-ta:focus {
+      border-color: rgba(0, 229, 255, .35);
+    }
+
+    .paste-ta::placeholder {
+      color: var(--t3);
+    }
+
+    .paste-err {
+      display: none;
+      margin-top: 10px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      background: rgba(248, 113, 113, .07);
+      border: 1px solid rgba(248, 113, 113, .2);
+      color: var(--red);
+      font-size: 13px;
+    }
+
+    .gbtn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(0, 229, 255, .08);
+      border: 1px solid rgba(0, 229, 255, .25);
+      border-radius: 10px;
+      padding: 8px 20px;
+      font-size: 13px;
+      color: var(--cyan);
+      cursor: pointer;
+      font-family: 'JetBrains Mono';
+      margin-top: 10px;
+      transition: all .2s;
+    }
+
+    .gbtn:hover {
+      background: rgba(0, 229, 255, .14);
+      border-color: rgba(0, 229, 255, .4);
+    }
+
+    /* ── PROFILE ── */
+    .prow {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .pcard {
+      background: var(--glass-bg);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      transition: border-color .3s;
+    }
+
+    .pcard:hover {
+      border-color: var(--glass-border-h);
+    }
+
+    .av-ph {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+      border: 2px solid rgba(244, 114, 182, .4);
+    }
+
+    .av-img {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid rgba(244, 114, 182, .4);
+      box-shadow: 0 0 24px rgba(244, 114, 182, .2);
+    }
+
+    .pname {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .phandle {
+      font-size: 13px;
+      color: var(--pink);
+      font-family: 'JetBrains Mono';
+      margin-bottom: 8px;
+    }
+
+    .pbio {
+      font-size: 13px;
+      color: var(--t2);
+      line-height: 1.55;
+      max-width: 400px;
+    }
+
+    .pstats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .pstat {
+      background: var(--glass-bg);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 18px 20px;
+      text-align: center;
+      transition: border-color .3s;
+    }
+
+    .pstat:hover {
+      border-color: var(--glass-border-h);
+    }
+
+    .pstat .v {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+
+    .pstat .l {
+      font-size: 11px;
+      color: var(--t2);
+      font-family: 'JetBrains Mono';
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    /* ── KPI ── */
+    .kgrid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kcard {
+      background: var(--glass-bg);
+      backdrop-filter: blur(30px) saturate(180%);
+      -webkit-backdrop-filter: blur(30px) saturate(180%);
+      border-radius: 20px;
+      padding: 26px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: all .3s;
+    }
+
+    .kcard::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      border: 1px solid var(--glass-border);
+      pointer-events: none;
+      transition: border-color .3s;
+    }
+
+    .kcard::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      border-radius: 20px 20px 0 0;
+    }
+
+    .kcard:hover::before {
+      border-color: var(--glass-border-h);
+    }
+
+    .kcard:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, .4);
+    }
+
+    .kglow {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(40px);
+      width: 160px;
+      height: 160px;
+      right: -40px;
+      top: -40px;
+      opacity: .18;
+      pointer-events: none;
+    }
+
+    .kv .kglow {
+      background: var(--cyan);
+    }
+
+    .kv::after {
+      background: linear-gradient(90deg, var(--cyan), transparent);
+    }
+
+    .kv .kval {
+      color: var(--cyan);
+      text-shadow: 0 0 30px rgba(0, 229, 255, .4);
+    }
+
+    .kl .kglow {
+      background: var(--pink);
+    }
+
+    .kl::after {
+      background: linear-gradient(90deg, var(--pink), transparent);
+    }
+
+    .kl .kval {
+      color: var(--pink);
+      text-shadow: 0 0 30px rgba(244, 114, 182, .4);
+    }
+
+    .kc .kglow {
+      background: var(--green);
+    }
+
+    .kc::after {
+      background: linear-gradient(90deg, var(--green), transparent);
+    }
+
+    .kc .kval {
+      color: var(--green);
+      text-shadow: 0 0 30px rgba(52, 211, 153, .4);
+    }
+
+    .kp .kglow {
+      background: var(--amber);
+    }
+
+    .kp::after {
+      background: linear-gradient(90deg, var(--amber), transparent);
+    }
+
+    .kp .kval {
+      color: var(--amber);
+      text-shadow: 0 0 30px rgba(251, 191, 36, .4);
+    }
+
+    .klbl {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--t2);
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono';
+      margin-bottom: 12px;
+    }
+
+    .kval {
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1;
+    }
+
+    .ksub {
+      font-size: 12px;
+      color: var(--t2);
+      margin-top: 8px;
+      font-family: 'JetBrains Mono';
+    }
+
+    /* ── CHARTS ── */
+    .charts {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .ccrd {
+      background: var(--glass-bg);
+      backdrop-filter: blur(30px) saturate(180%);
+      -webkit-backdrop-filter: blur(30px) saturate(180%);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 26px;
+      transition: border-color .3s;
+    }
+
+    .ccrd:hover {
+      border-color: var(--glass-border-h);
+    }
+
+    .ctitle {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--t2);
+      margin-bottom: 20px;
+    }
+
+    .cwrap {
+      position: relative;
+      height: 230px;
+    }
+
+    /* ── TYPE BARS ── */
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+    }
+
+    .bar-lbl {
+      font-size: 12px;
+      width: 80px;
+      color: var(--t2);
+      white-space: nowrap;
+    }
+
+    .bar-trk {
+      flex: 1;
+      height: 6px;
+      background: rgba(255, 255, 255, .05);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width .8s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .bar-n {
+      font-family: 'JetBrains Mono';
+      font-size: 12px;
+      width: 40px;
+      text-align: right;
+      color: var(--t2);
+    }
+
+    /* ── TABLE ── */
+    .tcard {
+      background: var(--glass-bg);
+      backdrop-filter: blur(30px) saturate(180%);
+      -webkit-backdrop-filter: blur(30px) saturate(180%);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 26px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .06);
+    }
+
+    .thead-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .ttitle {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .tsub {
+      font-size: 12px;
+      color: var(--t2);
+    }
+
+    .tctrls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .sbox {
+      background: rgba(255, 255, 255, .06);
+      border: 1px solid rgba(255, 255, 255, .1);
+      border-radius: 10px;
+      padding: 7px 14px;
+      color: var(--t1);
+      font-family: 'Outfit';
+      font-size: 13px;
+      outline: none;
+      width: 220px;
+      transition: all .2s;
+    }
+
+    .sbox:focus {
+      border-color: rgba(0, 229, 255, .4);
+      background: rgba(0, 229, 255, .04);
+    }
+
+    .sbox::placeholder {
+      color: var(--t3);
+    }
+
+    .scrl {
+      overflow-x: auto;
+    }
+
+    .scrl table {
+      min-width: 860px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono';
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      color: var(--t3);
+      border-bottom: 1px solid rgba(255, 255, 255, .06);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      text-transform: uppercase;
+    }
+
+    thead th:hover {
+      color: var(--t2);
+    }
+
+    thead th.sorted {
+      color: var(--cyan);
+    }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(255, 255, 255, .04);
+      transition: background .15s;
+    }
+
+    tbody tr:last-child {
+      border: none;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, .025);
+    }
+
+    tbody td {
+      padding: 12px 14px;
+      vertical-align: middle;
+    }
+
+    .rnum {
+      font-family: 'JetBrains Mono';
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--t3);
+    }
+
+    .rnum.top {
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .pcell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pthumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, .1);
+      flex-shrink: 0;
+    }
+
+    .pthumb-ph {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid rgba(255, 255, 255, .08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .pcap {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--t1);
+      font-size: 13px;
+      max-width: 240px;
+      display: block;
+    }
+
+    .pdate-sub {
+      color: var(--t3);
+      font-size: 11px;
+      margin-top: 2px;
+      font-family: 'JetBrains Mono';
+    }
+
+    .badge-type {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-family: 'JetBrains Mono';
+      font-weight: 600;
+      letter-spacing: .5px;
+      border: 1px solid;
+    }
+
+    .ti {
+      background: rgba(0, 229, 255, .1);
+      color: var(--cyan);
+      border-color: rgba(0, 229, 255, .2);
+    }
+
+    .tv {
+      background: rgba(244, 114, 182, .1);
+      color: var(--pink);
+      border-color: rgba(244, 114, 182, .2);
+    }
+
+    .tc {
+      background: rgba(167, 139, 250, .1);
+      color: var(--purple);
+      border-color: rgba(167, 139, 250, .2);
+    }
+
+    .treel {
+      background: rgba(248, 113, 113, .1);
+      color: var(--red);
+      border-color: rgba(248, 113, 113, .2);
+    }
+
+    .ncell {
+      font-family: 'JetBrains Mono';
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .dcell {
+      color: var(--t3);
+      font-size: 12px;
+      font-family: 'JetBrains Mono';
+      white-space: nowrap;
+    }
+
+    .pdot-wrap {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .pdot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    tr.ph td:first-child {
+      border-left: 2px solid rgba(52, 211, 153, .4);
+      padding-left: 12px;
+    }
+
+    tr.pm td:first-child {
+      border-left: 2px solid rgba(251, 191, 36, .4);
+      padding-left: 12px;
+    }
+
+    tr.pl td:first-child {
+      border-left: 2px solid rgba(248, 113, 113, .4);
+      padding-left: 12px;
+    }
+
+    .ph .pdot {
+      background: var(--green);
+      box-shadow: 0 0 8px rgba(52, 211, 153, .7);
+    }
+
+    .pm .pdot {
+      background: var(--amber);
+      box-shadow: 0 0 8px rgba(251, 191, 36, .7);
+    }
+
+    .pl .pdot {
+      background: var(--red);
+      box-shadow: 0 0 8px rgba(248, 113, 113, .7);
+    }
+
+    .ph .ptxt {
+      color: var(--green);
+    }
+
+    .pm .ptxt {
+      color: var(--amber);
+    }
+
+    .pl .ptxt {
+      color: var(--red);
+    }
+
+    .bflag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: 'JetBrains Mono';
+      padding: 3px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, .08);
+      color: var(--t3);
+      background: rgba(255, 255, 255, .03);
+      transition: all .2s;
+    }
+
+    .bflag:hover {
+      border-color: rgba(251, 191, 36, .3);
+      color: var(--amber);
+    }
+
+    .bflag.on {
+      border-color: rgba(251, 191, 36, .4);
+      color: var(--amber);
+      background: rgba(251, 191, 36, .08);
+    }
+
+    .iglink {
+      color: var(--t3);
+      font-size: 16px;
+      text-decoration: none;
+      transition: color .2s;
+    }
+
+    .iglink:hover {
+      color: var(--pink);
+    }
+
+    .lgnd {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .lgnd-i {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--t2);
+    }
+
+    .lgnd-d {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px;
+      color: var(--t3);
+      font-size: 14px;
+    }
+
+    .load-more-wrap {
+      display: none;
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .page-info {
+      font-size: 11px;
+      color: var(--t3);
+      font-family: 'JetBrains Mono';
+      margin-top: 8px;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, .1);
+      border-radius: 3px;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width:900px) {
+      .kgrid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .charts {
+        grid-template-columns: 1fr;
+      }
+
+      .prow {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width:600px) {
+      .main {
+        padding: 16px;
+      }
+
+      .bar {
+        padding: 0 16px;
+        gap: 10px;
+      }
+
+      .bar .live {
+        display: none;
+      }
+
+      .logo {
+        font-size: 17px;
+      }
+
+      .kgrid {
+        gap: 10px;
+      }
+
+      .kval {
+        font-size: 28px;
+      }
+
+      .cwrap {
+        height: 180px;
+      }
+
+      .tctrls {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .sbox {
+        width: 100%;
+      }
+
+      .scrl table {
+        min-width: 640px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg">
+    <div class="orb o1"></div>
+    <div class="orb o2"></div>
+    <div class="orb o3"></div>
+    <div class="orb o4"></div>
+  </div>
+  <div class="noise"></div>
+
+  <!-- TOP BAR -->
+  <header class="bar">
+    <div class="logo"><b>Signal</b><em>Dash</em></div>
+    <div class="badge"><span style="font-size:16px">📸</span>&nbsp;@scoopempire</div>
+    <div class="live">
+      <div class="dot"></div><span class="live-lbl">LIVE</span>
+    </div>
+    <button type="button" class="rbtn" id="refreshBtn" onclick="loadAll()">
+      <svg id="refreshIco" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+        viewBox="0 0 24 24">
+        <path
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      Refresh Data
+    </button>
+  </header>
+
+  <main class="main">
+    <!-- STATUS AREA — pre-populated so user sees something before JS runs -->
+    <div id="statusArea">
+      <div class="sbanner loading">
+        <div class="spinner"></div>
+        <span>Initializing SignalDash…</span>
+      </div>
+    </div>
+
+    <!-- DIAGNOSTIC PANEL -->
+    <div class="diag" id="diagCard">
+      <div class="diag-ttl"><span style="font-size:20px">🔍</span><span>API Diagnostic — @scoopempire</span></div>
+      <div class="diag-sub">Testing all endpoints to find live data…</div>
+      <div class="ep-list" id="epList"></div>
+      <button type="button" class="rawbtn" onclick="document.getElementById('rawLog').classList.toggle('open')">▾ Raw
+        Response Log</button>
+      <div class="rawlog" id="rawLog">No responses yet.</div>
+    </div>
+
+    <!-- CORS HELP (shown only when CORS detected) -->
+    <div class="chelp" id="corsHelp" style="display:none">
+      <h3>⚠️ CORS Blocked — This API Cannot Be Called From The Browser</h3>
+      <p>The RapidAPI instagram-scraper blocks direct browser calls. This is a server-side API — it works fine from a
+        terminal or server, but browsers get blocked by CORS policy.</p>
+      <p><strong>Fastest fix right now:</strong> Run this in your terminal, copy the output, and paste it below:</p>
+      <pre id="curlCmd"></pre>
+      <p style="margin-top:14px"><strong>Long-term fix:</strong> Move API calls to a small backend (Node.js, Python) and
+        proxy the data to this dashboard.</p>
+    </div>
+
+    <!-- MANUAL PASTE SECTION -->
+    <div class="glass paste-box" id="pasteSection" style="display:none">
+      <div class="paste-title">📋 Paste API Response</div>
+      <div class="paste-sub">Paste the JSON from the curl command above — the dashboard parses it automatically.</div>
+      <textarea class="paste-ta" id="pasteJson"
+        placeholder='Paste the full JSON here…  {"data":{"items":[...]}}'></textarea>
+      <div class="paste-err" id="pasteErr"></div>
+      <button type="button" class="gbtn" onclick="loadFromPaste()">⚡ Load Data</button>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="profileLabel" class="slabel" style="display:none">Account Profile · Instagram</div>
+    <div class="prow" id="profileRow" style="display:none">
+      <div class="pcard">
+        <div id="avatarWrap">
+          <div class="av-ph" id="avatarEl">S</div>
+        </div>
+        <div>
+          <div class="pname" id="profileName">@scoopempire</div>
+          <div class="phandle" id="profileHandle">@scoopempire</div>
+          <div class="pbio" id="profileBio"></div>
+        </div>
+      </div>
+      <div class="pstats">
+        <div class="pstat">
+          <div class="v" id="s-flw" style="color:var(--cyan)">—</div>
+          <div class="l">Followers</div>
+        </div>
+        <div class="pstat">
+          <div class="v" id="s-fwing" style="color:var(--purple)">—</div>
+          <div class="l">Following</div>
+        </div>
+        <div class="pstat">
+          <div class="v" id="s-tot" style="color:var(--amber)">—</div>
+          <div class="l">Total Posts</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div id="kpiLabel" class="slabel" style="display:none">Performance KPIs · @scoopempire</div>
+    <div class="kgrid" id="kpiGrid" style="display:none">
+      <div class="kcard kv">
+        <div class="kglow"></div>
+        <div class="klbl">Total Views</div>
+        <div class="kval" id="kv">—</div>
+        <div class="ksub" id="kv-s"></div>
+      </div>
+      <div class="kcard kl">
+        <div class="kglow"></div>
+        <div class="klbl">Total Likes</div>
+        <div class="kval" id="kl">—</div>
+        <div class="ksub" id="kl-s"></div>
+      </div>
+      <div class="kcard kc">
+        <div class="kglow"></div>
+        <div class="klbl">Total Comments</div>
+        <div class="kval" id="kc">—</div>
+        <div class="ksub" id="kc-s"></div>
+      </div>
+      <div class="kcard kp">
+        <div class="kglow"></div>
+        <div class="klbl">Posts Loaded</div>
+        <div class="kval" id="kp">—</div>
+        <div class="ksub" id="kp-s"></div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts" id="chartsRow" style="display:none">
+      <div class="ccrd">
+        <div class="ctitle">Likes per Post — Chronological</div>
+        <div class="cwrap"><canvas id="likesChart"></canvas></div>
+      </div>
+      <div class="ccrd">
+        <div class="ctitle">Content Type Breakdown</div>
+        <div id="typeBars" style="margin-top:8px"></div>
+      </div>
+    </div>
+
+    <!-- ALL POSTS TABLE -->
+    <div class="tcard" id="postsCard" style="display:none">
+      <div class="thead-row">
+        <div>
+          <div class="ttitle">All Posts · Ranked by Likes</div>
+          <div class="tsub" id="postsLabel">Loading…</div>
+        </div>
+        <div class="tctrls">
+          <input type="search" class="sbox" placeholder="🔍 Search caption…" id="searchBox" oninput="renderTable()">
+          <div class="lgnd">
+            <div class="lgnd-i">
+              <div class="lgnd-d" style="background:var(--green);box-shadow:0 0 6px rgba(52,211,153,.7)"></div>High
+            </div>
+            <div class="lgnd-i">
+              <div class="lgnd-d" style="background:var(--amber);box-shadow:0 0 6px rgba(251,191,36,.7)"></div>Mid
+            </div>
+            <div class="lgnd-i">
+              <div class="lgnd-d" style="background:var(--red);box-shadow:0 0 6px rgba(248,113,113,.7)"></div>Low
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="scrl">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Post</th>
+              <th>Type</th>
+              <th id="th-date" onclick="sortBy('date')">Date</th>
+              <th id="th-likes" onclick="sortBy('likes')" class="sorted">Likes ↓</th>
+              <th id="th-comments" onclick="sortBy('comments')">Comments</th>
+              <th id="th-views" onclick="sortBy('views')">Views</th>
+              <th>Performance</th>
+              <th>Branded ★</th>
+              <th>↗</th>
+            </tr>
+          </thead>
+          <tbody id="postsBody"></tbody>
+        </table>
+      </div>
+      <div class="load-more-wrap" id="loadMoreWrap">
+        <button type="button" class="gbtn" id="loadMoreBtn" onclick="loadNextPage()">↓ Load More Posts</button>
+        <div class="page-info" id="pageInfo"></div>
+      </div>
+    </div>
+
+    <!-- BRANDED POSTS TRACKER -->
+    <div class="tcard" id="brandedCard" style="display:none">
+      <div class="thead-row">
+        <div>
+          <div class="ttitle">Branded Posts Tracker</div>
+          <div class="tsub">Toggle ★ on any post above to track it here</div>
+        </div>
+        <div id="brandedCount" style="font-family:'JetBrains Mono';font-size:13px;color:var(--amber)"></div>
+      </div>
+      <div class="scrl">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Post</th>
+              <th>Type</th>
+              <th>Date</th>
+              <th>Likes</th>
+              <th>Comments</th>
+              <th>Views</th>
+              <th>Performance</th>
+            </tr>
+          </thead>
+          <tbody id="brandedBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    'use strict';
+
+    // ══════════════════════════════════════════════════════
+    //  CONFIG — single source of truth
+    // ══════════════════════════════════════════════════════
+    var CFG = {
+      KEY: 'apify_api_riyzwf1PClrEvbyEgQWTk1by4bzdtB2K5WYh',
+      HOST: 'api.apify.com',
+      USER: 'scoopempire',
+      // Per-request HTTP timeout (short — individual polling calls are fast)
+      TIMEOUT: 20000,
+      // Max total wait for an actor run to finish (ms)
+      ACTOR_MAX_WAIT: 300000,
+      // How often to poll run status (ms)
+      POLL_INTERVAL: 5000,
+      CORS_PROXY: 'https://corsproxy.io/?url='
+    };
+    var HEADERS = { 'Authorization': 'Bearer ' + CFG.KEY };
+    var BASE = 'https://' + CFG.HOST;
+    var IG_PROFILE_URL = 'https://www.instagram.com/' + CFG.USER + '/';
+
+    // Actor IDs
+    var ACTOR_POSTS = 'apify~instagram-scraper';
+    var ACTOR_PROFILE = 'apify~instagram-profile-scraper';
+
+    // Profile endpoints — each describes an async actor run
+    var PROFILE_EPS = [
+      {
+        id: 'p1', label: 'profile-scraper', actor: ACTOR_PROFILE,
+        input: { usernames: [CFG.USER] }
+      }
+    ];
+    // Posts endpoints tried sequentially — stop on first success
+    var POSTS_EPS = [
+      {
+        id: 'u1', label: 'posts (instagram-scraper)', actor: ACTOR_POSTS,
+        input: { directUrls: [IG_PROFILE_URL], resultsType: 'posts', resultsLimit: 50 }
+      },
+      {
+        id: 'u2', label: 'reels (instagram-scraper)', actor: ACTOR_POSTS,
+        input: { directUrls: [IG_PROFILE_URL], resultsType: 'reels', resultsLimit: 50 }
+      }
+    ];
+
+    // ══════════════════════════════════════════════════════
+    //  STATE
+    // ══════════════════════════════════════════════════════
+    var POSTS = [];
+    var nextCursor = null;
+    var loadedPages = 0;
+    var sortKey = 'likes';
+    var sortDir = -1;
+    var isLoading = false;
+    var logLines = [];
+
+    // Tier cache — rebuilt once after POSTS changes, used by perfTier()
+    var _tier = { max: 1, min: 0 };
+    function rebuildTierCache() {
+      var vals = POSTS.map(function (p) { return p.likes; }).filter(function (x) { return x > 0; });
+      _tier.max = vals.length ? Math.max.apply(null, vals) : 1;
+      _tier.min = vals.length ? Math.min.apply(null, vals) : 0;
+    }
+    function perfTier(likes) {
+      var r = (likes - _tier.min) / (_tier.max - _tier.min || 1);
+      return r > 0.55 ? 'h' : r > 0.25 ? 'm' : 'l';
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  TYPE MAP — single source (DRY, no duplication)
+    // ══════════════════════════════════════════════════════
+    var TYPE_MAP = {
+      graphimage: 'Image', image: 'Image', photo: 'Image', '1': 'Image',
+      graphvideo: 'Video', video: 'Video', '2': 'Video',
+      graphsidecar: 'Carousel', carousel: 'Carousel', sidecar: 'Carousel',
+      carousel_album: 'Carousel', '8': 'Carousel',
+      reel: 'Reel', clips: 'Reel', igtv: 'Reel'
+    };
+    var TYPE_CSS = { Image: 'ti', Video: 'tv', Carousel: 'tc', Reel: 'treel' };
+    function getTypeName(t) { return TYPE_MAP[(t || '').toLowerCase()] || 'Post'; }
+    function typeBadge(t) {
+      var name = getTypeName(t);
+      return '<span class="badge-type ' + (TYPE_CSS[name] || 'ti') + '">' + name + '</span>';
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  UTILS
+    // ══════════════════════════════════════════════════════
+    function fmt(n) {
+      if (n === null || n === undefined) return '—';
+      n = +n;
+      if (isNaN(n)) return '—';
+      if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+      if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+      return n.toLocaleString();
+    }
+    function fmtDate(ts) {
+      if (!ts) return '—';
+      var d = new Date(typeof ts === 'number' && ts < 9999999999 ? ts * 1000 : ts);
+      return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    // XSS-safe HTML escaping for all user-sourced content in innerHTML
+    function esc(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    // Safe deep property access without optional chaining
+    function safeGet(obj, path) {
+      try { return path.split('.').reduce(function (o, k) { return o && o[k] !== undefined ? o[k] : null; }, obj); }
+      catch (e) { return null; }
+    }
+    // Like nullish coalescing but works in all environments
+    function firstDef() {
+      for (var i = 0; i < arguments.length; i++) {
+        if (arguments[i] !== null && arguments[i] !== undefined) return arguments[i];
+      }
+      return null;
+    }
+    // Object.entries polyfill
+    function objEntries(o) {
+      var r = [];
+      for (var k in o) { if (Object.prototype.hasOwnProperty.call(o, k)) r.push([k, o[k]]); }
+      return r;
+    }
+    function showEl(id, visible) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = visible ? '' : 'none';
+    }
+    function setStatus(type, msg) {
+      var icon = type === 'loading' ? '<div class="spinner"></div>' : '<span>' + (type === 'success' ? '✓' : '⚠') + '</span>';
+      document.getElementById('statusArea').innerHTML = '<div class="sbanner ' + type + '">' + icon + '<span>' + esc(msg) + '</span></div>';
+    }
+    function clearStatus() { document.getElementById('statusArea').innerHTML = ''; }
+
+    // ══════════════════════════════════════════════════════
+    //  API FETCH — short per-request timeout, always via CORS proxy
+    // ══════════════════════════════════════════════════════
+    function apiFetch(url, opts) {
+      var ctrl = new AbortController();
+      var timer = setTimeout(function () { ctrl.abort(); }, CFG.TIMEOUT);
+      var proxiedUrl = CFG.CORS_PROXY + encodeURIComponent(url);
+      var method = (opts && opts.method) ? opts.method : 'GET';
+      var hdrs = Object.assign({}, HEADERS);
+      var fetchOpts = { method: method, headers: hdrs, signal: ctrl.signal };
+      if (opts && opts.body) {
+        hdrs['Content-Type'] = 'application/json';
+        fetchOpts.body = opts.body;
+      }
+      return fetch(proxiedUrl, fetchOpts)
+        .then(function (res) {
+          clearTimeout(timer);
+          if (!res.ok) return res.text().then(function (t) { throw new Error('HTTP ' + res.status + ': ' + t.slice(0, 100)); });
+          return res.json();
+        })
+        .catch(function (err) { clearTimeout(timer); throw err; });
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  APIFY ASYNC RUN — start → poll → fetch dataset
+    //  Avoids 504 that happens with run-sync-get-dataset-items
+    // ══════════════════════════════════════════════════════
+    function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+    async function runApifyActor(actorId, input, onProgress) {
+      // 1. Start the run
+      var startUrl = BASE + '/v2/acts/' + actorId + '/runs?token=' + CFG.KEY;
+      var runResp = await apiFetch(startUrl, {
+        method: 'POST',
+        body: JSON.stringify(input)
+      });
+      var run = runResp.data || runResp;
+      var runId = run.id;
+      var datasetId = run.defaultDatasetId;
+      if (!runId) throw new Error('Actor start failed — no runId returned');
+
+      // 2. Poll until SUCCEEDED / FAILED / ABORTED
+      var started = Date.now();
+      var pollUrl = BASE + '/v2/acts/' + actorId + '/runs/' + runId + '?token=' + CFG.KEY;
+      while (true) {
+        if (Date.now() - started > CFG.ACTOR_MAX_WAIT) throw new Error('Actor timed out after ' + (CFG.ACTOR_MAX_WAIT / 1000) + 's');
+        await sleep(CFG.POLL_INTERVAL);
+        var statusResp = await apiFetch(pollUrl);
+        var status = (statusResp.data || statusResp).status;
+        var elapsed = Math.round((Date.now() - started) / 1000);
+        if (onProgress) onProgress(status, elapsed);
+        if (status === 'SUCCEEDED') {
+          datasetId = datasetId || (statusResp.data || statusResp).defaultDatasetId;
+          break;
+        }
+        if (status === 'FAILED' || status === 'ABORTED' || status === 'TIMED-OUT') {
+          throw new Error('Actor run ' + status + ' (runId: ' + runId + ')');
+        }
+        // RUNNING / READY — keep polling
+      }
+
+      // 3. Fetch dataset items
+      var itemsUrl = BASE + '/v2/datasets/' + datasetId + '/items?token=' + CFG.KEY + '&limit=100';
+      var items = await apiFetch(itemsUrl);
+      // Apify dataset items endpoint returns an array directly
+      return Array.isArray(items) ? items : (items.items || items.data || []);
+    }
+    function isTimeout(err) { return err && (err.name === 'AbortError' || (err.message && err.message.indexOf('aborted') > -1)); }
+    function isCORS(err) {
+      if (isTimeout(err)) return false;
+      return err instanceof TypeError && (
+        err.message === 'Failed to fetch' ||
+        err.message === 'Load failed' ||
+        err.message === 'NetworkError when attempting to fetch resource.' ||
+        err.message.toLowerCase().indexOf('cors') > -1
+      );
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  DIAGNOSTIC UI
+    // ══════════════════════════════════════════════════════
+    var epEls = {};
+    function buildDiag() {
+      var list = document.getElementById('epList');
+      list.innerHTML = '';
+      epEls = {};
+      PROFILE_EPS.concat(POSTS_EPS).forEach(function (ep) {
+        var row = document.createElement('div');
+        row.className = 'ep';
+        row.id = 'row-' + ep.id;
+        row.innerHTML =
+          '<div class="ep-ico idle" id="ico-' + ep.id + '">·</div>' +
+          '<div class="ep-lbl">' + esc(ep.label) + '</div>' +
+          '<div class="ep-res" id="res-' + ep.id + '">waiting…</div>';
+        list.appendChild(row);
+        epEls[ep.id] = {
+          row: row,
+          ico: document.getElementById('ico-' + ep.id),
+          res: document.getElementById('res-' + ep.id)
+        };
+      });
+    }
+    function setEp(id, state, txt) {
+      var el = epEls[id];
+      if (!el) return;
+      el.row.className = 'ep ' + state;
+      el.ico.className = 'ep-ico ' + (state === 'testing' ? 'spin' : state);
+      el.ico.textContent = state === 'ok' ? '✓' : state === 'fail' ? '✕' : state === 'cors' ? '⊘' : '';
+      el.res.textContent = txt || '';
+    }
+    function logFailure(label, data) {
+      var line = '=== ' + label + ' ===\n' + JSON.stringify(data, null, 2).slice(0, 3000) + '\n\n';
+      logLines.push(line);
+      if (logLines.join('').length > 20000) logLines.shift();
+      document.getElementById('rawLog').textContent = logLines.join('');
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  DATA NORMALISER — handles any API response shape
+    // ══════════════════════════════════════════════════════
+    function normalise(raw) {
+      var id = raw.id || raw.pk || raw.shortcode || String(Math.random() * 1e9 | 0);
+      var sc = raw.shortcode || raw.code || '';
+      if (!sc && typeof raw.id === 'string' && raw.id.length < 20) sc = raw.id;
+
+      var cap = '';
+      if (raw.caption && typeof raw.caption === 'object') cap = raw.caption.text || '';
+      else if (typeof raw.caption === 'string') cap = raw.caption;
+      if (!cap) cap = safeGet(raw, 'edge_media_to_caption.edges.0.node.text') || raw.accessibility_caption || '';
+      cap = String(cap).slice(0, 200);
+
+      var type = raw.type || raw.media_type_name || (typeof raw.media_type === 'string' ? raw.media_type : String(raw.media_type || '')) || raw.__typename || '1';
+      var ts = raw.taken_at || raw.timestamp || raw.taken_at_timestamp || raw.date || null;
+      var likes = +(firstDef(raw.like_count, safeGet(raw, 'likes.count'), safeGet(raw, 'edge_media_preview_like.count'), typeof raw.likes === 'number' ? raw.likes : null) || 0);
+      var comments = +(firstDef(raw.comment_count, safeGet(raw, 'comments.count'), safeGet(raw, 'edge_media_to_comment.count'), typeof raw.comments === 'number' ? raw.comments : null) || 0);
+      var views = +(firstDef(raw.view_count, raw.video_view_count, raw.play_count, raw.video_play_count) || 0);
+      var thumb = raw.thumbnail_url || raw.image_url || raw.thumbnail_src || raw.display_url || '';
+      if (!thumb) { var dr = safeGet(raw, 'display_resources'); if (Array.isArray(dr) && dr.length) thumb = dr[0].src || ''; }
+      var url = sc ? 'https://www.instagram.com/p/' + sc + '/' : '#';
+      return { id: String(id), sc: sc, caption: cap, type: type, ts: ts, likes: likes, comments: comments, views: views, thumb: thumb, url: url, branded: false };
+    }
+
+    // Extract posts array from any API response shape
+    function extractPosts(data) {
+      if (Array.isArray(data) && data.length) return data;
+      var u = data.data || data.result || data.response || data;
+      if (Array.isArray(u) && u.length) return u;
+      var keys = ['items', 'posts', 'medias', 'media', 'edges', 'feed', 'timeline', 'reels', 'clips'];
+      var i, v;
+      for (i = 0; i < keys.length; i++) {
+        v = u[keys[i]];
+        if (Array.isArray(v) && v.length) return v[0] && v[0].node ? v.map(function (e) { return e.node; }) : v;
+      }
+      for (i = 0; i < keys.length; i++) {
+        v = data[keys[i]];
+        if (Array.isArray(v) && v.length) return v[0] && v[0].node ? v.map(function (e) { return e.node; }) : v;
+      }
+      var edges = safeGet(data, 'data.user.edge_owner_to_timeline_media.edges') ||
+        safeGet(data, 'user.edge_owner_to_timeline_media.edges') ||
+        safeGet(data, 'data.edges');
+      if (Array.isArray(edges) && edges.length) return edges.map(function (e) { return e.node || e; });
+      if (data && (data.shortcode || data.like_count !== undefined || data.code)) return [data];
+      return null;
+    }
+
+    // Extract cursor for pagination
+    function extractCursor(data) {
+      return data.next_cursor || data.pagination_token ||
+        (data.data && (data.data.next_cursor || data.data.pagination_token)) || null;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  MAIN LOAD
+    // ══════════════════════════════════════════════════════
+    async function loadAll() {
+      if (isLoading) return;
+      isLoading = true;
+
+      var btn = document.getElementById('refreshBtn');
+      btn.classList.add('spin');
+      btn.disabled = true;
+
+      try {
+        logLines = [];
+        document.getElementById('rawLog').textContent = '';
+        showEl('corsHelp', false);
+        showEl('pasteSection', false);
+        showEl('diagCard', true);
+        buildDiag();
+        setStatus('loading', 'Scanning API endpoints for @scoopempire…');
+
+        var corsDetected = false;
+        var profileData = null;
+        var postsData = null;
+
+        // ── Profile: run all in parallel ──────────────────
+        var pPromises = PROFILE_EPS.map(function (ep) {
+          return (async function () {
+            setEp(ep.id, 'testing', 'starting actor…');
+            try {
+              var items = await runApifyActor(ep.actor, ep.input, function (status, elapsed) {
+                setEp(ep.id, 'testing', status + ' — ' + elapsed + 's');
+              });
+              var u = items && items[0] ? items[0] : null;
+              if (u && (u.username || u.followersCount || u.biography)) {
+                setEp(ep.id, 'ok', '✓ profile found');
+                // Normalise Apify profile-scraper field names
+                u.follower_count = u.follower_count || u.followersCount;
+                u.following_count = u.following_count || u.followingCount;
+                u.media_count = u.media_count || u.postsCount;
+                return u;
+              }
+              logFailure(ep.label, items);
+              setEp(ep.id, 'fail', 'no profile fields in response');
+            } catch (err) {
+              if (isCORS(err)) { setEp(ep.id, 'cors', '⊘ CORS blocked'); corsDetected = true; }
+              else if (isTimeout(err)) setEp(ep.id, 'fail', '⏱ timeout');
+              else setEp(ep.id, 'fail', String(err.message || err).slice(0, 60));
+            }
+            return null;
+          })();
+        });
+
+        // ── Posts: sequential, stop on first success ──────
+        for (var i = 0; i < POSTS_EPS.length; i++) {
+          var ep = POSTS_EPS[i];
+          setEp(ep.id, 'testing', 'starting actor…');
+          try {
+            var data = await runApifyActor(ep.actor, ep.input, function (status, elapsed) {
+              setEp(ep.id, 'testing', status + ' — ' + elapsed + 's');
+            });
+
+            var arr = extractPosts(data);
+            if (arr && arr.length) {
+              postsData = arr;
+              nextCursor = null; // Apify dataset fetches all at once
+              setEp(ep.id, 'ok', '✓ ' + arr.length + ' posts');
+              break;
+            } else {
+              logFailure(ep.label, data);
+              setEp(ep.id, 'fail', 'actor returned 0 items');
+            }
+          } catch (err) {
+            if (isCORS(err)) { setEp(ep.id, 'cors', '⊘ CORS blocked'); corsDetected = true; }
+            else if (isTimeout(err)) setEp(ep.id, 'fail', '⏱ timeout');
+            else setEp(ep.id, 'fail', String(err.message || err).slice(0, 70));
+          }
+        }
+
+        // ── Collect profile ───────────────────────────────
+        var pResults = await Promise.all(pPromises);
+        for (var pi = 0; pi < pResults.length; pi++) {
+          if (pResults[pi]) { profileData = pResults[pi]; break; }
+        }
+
+        // ── Render ────────────────────────────────────────
+        if (profileData) { renderProfile(profileData); showEl('profileLabel', true); showEl('profileRow', true); }
+
+        if (postsData && postsData.length) {
+          POSTS = postsData.map(normalise);
+          POSTS.sort(function (a, b) { return b.likes - a.likes; });
+          rebuildTierCache();
+          loadedPages = 1;
+          renderAll();
+          setStatus('success', 'Loaded ' + POSTS.length + ' posts from @scoopempire' + (nextCursor ? ' — more available' : ''));
+          setTimeout(clearStatus, 4000);
+          setTimeout(function () { showEl('diagCard', false); }, 1800);
+          return;
+        }
+
+        // ── No posts found ────────────────────────────────
+        if (corsDetected) {
+          setStatus('warn', 'CORS is blocking all browser requests to this API. Follow the instructions below.');
+          showEl('corsHelp', true);
+        } else {
+          setStatus('error', 'All ' + POSTS_EPS.length + ' endpoints failed — check the raw log for details.');
+          document.getElementById('rawLog').classList.add('open');
+        }
+        showEl('pasteSection', true);
+
+      } catch (fatal) {
+        setStatus('error', 'Unexpected error: ' + String(fatal.message || fatal));
+        console.error('[SignalDash]', fatal);
+      } finally {
+        btn.classList.remove('spin');
+        btn.disabled = false;
+        isLoading = false;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  LOAD NEXT PAGE
+    // ══════════════════════════════════════════════════════
+    async function loadNextPage() {
+      if (!nextCursor || isLoading) return;
+      isLoading = true;
+      var btn = document.getElementById('loadMoreBtn');
+      if (btn) { btn.textContent = '⏳ Loading…'; btn.disabled = true; }
+      try {
+        var cursor = encodeURIComponent(nextCursor);
+        var candidates = [
+          BASE + '/v1/instagram/user_posts_v2?username_or_id_or_url=' + UID + '&next_cursor=' + cursor,
+          BASE + '/v1/instagram/user_posts_v2?username_or_id_or_url=' + UID + '&pagination_token=' + cursor
+        ];
+        var fresh = null;
+        for (var c = 0; c < candidates.length; c++) {
+          var d = await apiFetch(candidates[c]);
+          var arr = extractPosts(d);
+          if (arr && arr.length) {
+            fresh = arr;
+            nextCursor = extractCursor(d);
+            break;
+          }
+        }
+        if (fresh && fresh.length) {
+          var existing = {};
+          POSTS.forEach(function (p) { existing[p.id] = true; });
+          var newPosts = fresh.map(normalise).filter(function (p) { return !existing[p.id]; });
+          POSTS = POSTS.concat(newPosts);
+          POSTS.sort(function (a, b) { return b.likes - a.likes; });
+          rebuildTierCache();
+          loadedPages++;
+          renderAll();
+        } else {
+          nextCursor = null;
+        }
+      } catch (e) {
+        setStatus('error', 'Failed to load next page: ' + String(e.message || e));
+        setTimeout(clearStatus, 4000);
+      } finally {
+        isLoading = false;
+        if (btn) { btn.textContent = '↓ Load More Posts'; btn.disabled = false; }
+        updatePagination();
+      }
+    }
+    function updatePagination() {
+      showEl('loadMoreWrap', !!nextCursor);
+      var info = document.getElementById('pageInfo');
+      if (info) info.textContent = POSTS.length + ' posts loaded · page ' + loadedPages;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  MANUAL PASTE
+    // ══════════════════════════════════════════════════════
+    function showPasteErr(msg) {
+      var el = document.getElementById('pasteErr');
+      if (!el) return;
+      el.textContent = msg;
+      el.style.display = msg ? '' : 'none';
+    }
+    function loadFromPaste() {
+      showPasteErr('');
+      var raw = document.getElementById('pasteJson').value.trim();
+      if (!raw) { showPasteErr('Please paste the JSON first.'); return; }
+      var parsed;
+      try { parsed = JSON.parse(raw); }
+      catch (e) { showPasteErr('Invalid JSON — ' + e.message); return; }
+
+      // Also try to extract profile from paste
+      var u = parsed.user || (parsed.data && typeof parsed.data === 'object' && !Array.isArray(parsed.data) ? parsed.data : null);
+      if (u && (u.username || u.follower_count || u.biography)) {
+        renderProfile(u);
+        showEl('profileLabel', true);
+        showEl('profileRow', true);
+      }
+
+      var arr = extractPosts(parsed);
+      if (!arr || !arr.length) {
+        showPasteErr('No posts found in this JSON. Top-level keys: [' + Object.keys(parsed).join(', ') + ']');
+        return;
+      }
+      POSTS = arr.map(normalise);
+      POSTS.sort(function (a, b) { return b.likes - a.likes; });
+      rebuildTierCache();
+      loadedPages = 1;
+      nextCursor = extractCursor(parsed);
+      renderAll();
+      showEl('corsHelp', false);
+      showEl('pasteSection', false);
+      showEl('diagCard', false);
+      setStatus('success', 'Data loaded — ' + POSTS.length + ' posts from @scoopempire');
+      setTimeout(clearStatus, 4000);
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  RENDER ALL
+    // ══════════════════════════════════════════════════════
+    function renderAll() {
+      renderKPIs();
+      renderCharts();
+      renderTable();
+      renderBranded();
+      showEl('kpiLabel', true); showEl('kpiGrid', true);
+      showEl('chartsRow', true); showEl('postsCard', true); showEl('brandedCard', true);
+      updatePagination();
+    }
+
+    // ── PROFILE ──────────────────────────────────────────
+    function renderProfile(u) {
+      document.getElementById('profileName').textContent = u.full_name || u.name || '@' + CFG.USER;
+      document.getElementById('profileHandle').textContent = '@' + (u.username || CFG.USER);
+      document.getElementById('profileBio').textContent = u.biography || u.bio || '';
+      document.getElementById('s-flw').textContent = fmt(u.follower_count || u.followers || safeGet(u, 'edge_followed_by.count'));
+      document.getElementById('s-fwing').textContent = fmt(u.following_count || u.following || safeGet(u, 'edge_follow.count'));
+      document.getElementById('s-tot').textContent = fmt(u.media_count || u.posts || safeGet(u, 'edge_owner_to_timeline_media.count'));
+      var pic = safeGet(u, 'hd_profile_pic_url_info.url') || u.profile_pic_url;
+      var wrap = document.getElementById('avatarWrap');
+      if (pic && wrap) {
+        var img = document.createElement('img');
+        img.className = 'av-img';
+        img.src = pic;
+        img.onerror = function () { wrap.innerHTML = '<div class="av-ph">S</div>'; };
+        wrap.innerHTML = '';
+        wrap.appendChild(img);
+      }
+    }
+
+    // ── KPIs ─────────────────────────────────────────────
+    function renderKPIs() {
+      var n = POSTS.length || 1;
+      var tv = POSTS.reduce(function (s, p) { return s + p.views; }, 0);
+      var tl = POSTS.reduce(function (s, p) { return s + p.likes; }, 0);
+      var tc = POSTS.reduce(function (s, p) { return s + p.comments; }, 0);
+      document.getElementById('kv').textContent = fmt(tv);
+      document.getElementById('kl').textContent = fmt(tl);
+      document.getElementById('kc').textContent = fmt(tc);
+      document.getElementById('kp').textContent = POSTS.length;
+      document.getElementById('kv-s').textContent = 'avg ' + fmt(Math.round(tv / n)) + ' / post';
+      document.getElementById('kl-s').textContent = 'avg ' + fmt(Math.round(tl / n)) + ' / post';
+      document.getElementById('kc-s').textContent = 'avg ' + fmt(Math.round(tc / n)) + ' / post';
+      document.getElementById('kp-s').textContent = POSTS.filter(function (p) { return p.views > 0; }).length + ' with video';
+    }
+
+    // ── CHARTS ───────────────────────────────────────────
+    var _chart = null;
+    function renderCharts() {
+      // Guard: Chart.js may not be loaded yet if CDN was slow
+      if (typeof Chart === 'undefined') {
+        document.getElementById('typeBars').innerHTML = '<p style="color:var(--t3);font-size:12px;padding:20px 0">Chart.js not loaded — check internet connection</p>';
+        return;
+      }
+      if (_chart) { try { _chart.destroy(); } catch (e) { } _chart = null; }
+
+      var byDate = POSTS.filter(function (p) { return p.ts; }).slice().sort(function (a, b) {
+        var ta = typeof a.ts === 'number' ? a.ts : new Date(a.ts).getTime() / 1000;
+        var tb = typeof b.ts === 'number' ? b.ts : new Date(b.ts).getTime() / 1000;
+        return ta - tb;
+      });
+      var ctx = document.getElementById('likesChart').getContext('2d');
+      var grad = ctx.createLinearGradient(0, 0, 0, 230);
+      grad.addColorStop(0, 'rgba(244,114,182,.28)');
+      grad.addColorStop(1, 'rgba(244,114,182,0)');
+      _chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: byDate.map(function (p) { return fmtDate(p.ts); }),
+          datasets: [{
+            label: 'Likes', data: byDate.map(function (p) { return p.likes; }),
+            borderColor: '#f472b6', backgroundColor: grad, tension: .4, fill: true, borderWidth: 2,
+            pointRadius: 4, pointBackgroundColor: '#f472b6', pointBorderColor: 'rgba(244,114,182,.3)', pointBorderWidth: 3
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }, tooltip: {
+              backgroundColor: 'rgba(8,8,22,.9)', borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
+              callbacks: { label: function (c) { return 'Likes: ' + fmt(c.parsed.y); } }
+            }
+          },
+          scales: {
+            x: { display: false }, y: {
+              grid: { color: 'rgba(255,255,255,.04)' },
+              ticks: { color: 'rgba(255,255,255,.3)', font: { family: 'JetBrains Mono', size: 11 }, callback: function (v) { return fmt(v); } }
+            }
+          }
+        }
+      });
+
+      var counts = {};
+      POSTS.forEach(function (p) { var t = getTypeName(p.type); counts[t] = (counts[t] || 0) + 1; });
+      var sorted = objEntries(counts).sort(function (a, b) { return b[1] - a[1]; });
+      var maxC = sorted.length && sorted[0][1] ? sorted[0][1] : 1;
+      var colMap = { Image: 'var(--cyan)', Video: 'var(--pink)', Carousel: 'var(--purple)', Reel: 'var(--red)', Post: 'var(--t2)' };
+      document.getElementById('typeBars').innerHTML = sorted.map(function (s) {
+        return '<div class="bar-row">' +
+          '<div class="bar-lbl">' + esc(s[0]) + '</div>' +
+          '<div class="bar-trk"><div class="bar-fill" style="width:' + ((s[1] / maxC) * 100).toFixed(1) + '%;background:' + (colMap[s[0]] || 'var(--cyan)') + '"></div></div>' +
+          '<div class="bar-n">' + s[1] + '</div></div>';
+      }).join('');
+    }
+
+    // ── SORT ─────────────────────────────────────────────
+    function sortBy(key) {
+      if (sortKey === key) sortDir *= -1;
+      else { sortKey = key; sortDir = -1; }
+      var meta = { date: 'Date', likes: 'Likes', comments: 'Comments', views: 'Views' };
+      ['date', 'likes', 'comments', 'views'].forEach(function (k) {
+        var th = document.getElementById('th-' + k);
+        if (!th) return;
+        th.className = k === sortKey ? 'sorted' : '';
+        th.textContent = meta[k] + (k === sortKey ? (sortDir === -1 ? ' ↓' : ' ↑') : '');
+      });
+      renderTable();
+    }
+
+    // ── POSTS TABLE ──────────────────────────────────────
+    function renderTable() {
+      var q = document.getElementById('searchBox').value.toLowerCase();
+      var posts = POSTS.filter(function (p) { return !q || p.caption.toLowerCase().indexOf(q) > -1; });
+      posts = posts.slice().sort(function (a, b) {
+        var va = sortKey === 'date' ? (a.ts || 0) : (a[sortKey] || 0);
+        var vb = sortKey === 'date' ? (b.ts || 0) : (b[sortKey] || 0);
+        return sortDir * (va - vb);
+      });
+      var tbody = document.getElementById('postsBody');
+      document.getElementById('postsLabel').textContent = posts.length + ' posts · sorted by ' + sortKey;
+      if (!posts.length) { tbody.innerHTML = '<tr><td colspan="10"><div class="empty">No posts found</div></td></tr>'; return; }
+      var rows = [];
+      for (var i = 0; i < posts.length; i++) {
+        var p = posts[i];
+        var t = perfTier(p.likes);
+        var cls = t === 'h' ? 'ph' : t === 'm' ? 'pm' : 'pl';
+        var lbl = t === 'h' ? 'High' : t === 'm' ? 'Mid' : 'Low';
+        var thumb = p.thumb
+          ? '<img class="pthumb" src="' + esc(p.thumb) + '" loading="lazy" onerror="this.style.display=\'none\'">'
+          : '<div class="pthumb-ph">📷</div>';
+        rows.push(
+          '<tr class="' + cls + '">' +
+          '<td><span class="rnum' + (i < 3 ? ' top' : '') + '">' + (i + 1) + '</span></td>' +
+          '<td><div class="pcell">' + thumb +
+          '<div><span class="pcap">' + esc(p.caption || '(no caption)') + '</span>' +
+          '<span class="pdate-sub">' + fmtDate(p.ts) + '</span></div></div></td>' +
+          '<td>' + typeBadge(p.type) + '</td>' +
+          '<td class="dcell">' + fmtDate(p.ts) + '</td>' +
+          '<td class="ncell">' + fmt(p.likes) + '</td>' +
+          '<td class="ncell">' + fmt(p.comments) + '</td>' +
+          '<td class="ncell">' + (p.views > 0 ? fmt(p.views) : '<span style="color:var(--t3)">—</span>') + '</td>' +
+          '<td><div class="pdot-wrap"><div class="pdot"></div><span class="ptxt" style="font-size:12px">' + lbl + '</span></div></td>' +
+          '<td><span class="bflag' + (p.branded ? ' on' : '') + '" onclick="toggleBranded(\'' + esc(p.id) + '\',event)">★ ' + (p.branded ? 'Branded' : 'Mark') + '</span></td>' +
+          '<td><a class="iglink" href="' + esc(p.url) + '" target="_blank" rel="noopener noreferrer">↗</a></td>' +
+          '</tr>'
+        );
+      }
+      tbody.innerHTML = rows.join('');
+    }
+    function toggleBranded(id, e) {
+      e.stopPropagation();
+      for (var i = 0; i < POSTS.length; i++) {
+        if (POSTS[i].id === id) { POSTS[i].branded = !POSTS[i].branded; break; }
+      }
+      renderTable();
+      renderBranded();
+    }
+
+    // ── BRANDED TABLE ────────────────────────────────────
+    function renderBranded() {
+      var list = POSTS.filter(function (p) { return p.branded; });
+      var cnt = document.getElementById('brandedCount');
+      var tbody = document.getElementById('brandedBody');
+      if (cnt) cnt.textContent = list.length ? list.length + ' branded post' + (list.length > 1 ? 's' : '') : '';
+      if (!list.length) { tbody.innerHTML = '<tr><td colspan="8"><div class="empty">Toggle ★ on posts above to track them here</div></td></tr>'; return; }
+      list.sort(function (a, b) { return b.likes - a.likes; });
+      var rows = [];
+      for (var i = 0; i < list.length; i++) {
+        var p = list[i];
+        var t = perfTier(p.likes);
+        var cls = t === 'h' ? 'ph' : t === 'm' ? 'pm' : 'pl';
+        var lbl = t === 'h' ? 'High' : t === 'm' ? 'Mid' : 'Low';
+        var thumb = p.thumb
+          ? '<img class="pthumb" src="' + esc(p.thumb) + '" loading="lazy" onerror="this.style.display=\'none\'">'
+          : '<div class="pthumb-ph">📷</div>';
+        rows.push(
+          '<tr class="' + cls + '">' +
+          '<td><span class="rnum' + (i < 3 ? ' top' : '') + '">' + (i + 1) + '</span></td>' +
+          '<td><div class="pcell">' + thumb +
+          '<div><span class="pcap">' + esc(p.caption || '(no caption)') + '</span>' +
+          '<span class="pdate-sub">' + fmtDate(p.ts) + '</span></div></div></td>' +
+          '<td>' + typeBadge(p.type) + '</td>' +
+          '<td class="dcell">' + fmtDate(p.ts) + '</td>' +
+          '<td class="ncell">' + fmt(p.likes) + '</td>' +
+          '<td class="ncell">' + fmt(p.comments) + '</td>' +
+          '<td class="ncell">' + (p.views > 0 ? fmt(p.views) : '—') + '</td>' +
+          '<td><div class="pdot-wrap"><div class="pdot"></div><span class="ptxt" style="font-size:12px">' + lbl + '</span></div></td>' +
+          '</tr>'
+        );
+      }
+      tbody.innerHTML = rows.join('');
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  INIT — fill curl cmd then load
+    // ══════════════════════════════════════════════════════
+    // Use window.onload so defer scripts (Chart.js) are guaranteed loaded
+    window.addEventListener('load', function () {
+      var el = document.getElementById('curlCmd');
+      if (el) {
+        el.textContent =
+          'curl "https://' + CFG.HOST + '/v1/instagram/user_posts_v2?username_or_id_or_url=' + CFG.USER + '" \\\n' +
+          '  -H "x-rapidapi-key: ' + CFG.KEY + '" \\\n' +
+          '  -H "x-rapidapi-host: ' + CFG.HOST + '"';
+      }
+      loadAll();
+    });
+  </script>
+</body>
+
+</html>
